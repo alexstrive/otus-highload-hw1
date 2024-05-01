@@ -13,7 +13,7 @@ public enum Gender {
         if (this == MALE) {
             return "MALE";
         } else {
-            return "FEmALE";
+            return "FEMALE";
         }
     }
 }
