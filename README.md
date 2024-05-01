@@ -1,5 +1,7 @@
 # Otus Highload Homework 1
 
+Novopashin Alexey Alexandrovich
+
 ## Startup
 
 1) Start PostgreSQL database at `localhost:5432` with username `posgresql` and password `pass` (there
