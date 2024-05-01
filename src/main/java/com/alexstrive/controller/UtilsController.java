@@ -61,7 +61,7 @@ public class UtilsController {
             var cities = cityRepository.getAll();
             var spb = cities.getFirst();
             var ykb = cities.getLast();
-            var alex = new User("Alexey", "Novopashin", "alexei.novoppashin@gmail.com", "1234", LocalDate.now(), Gender.MALE, List.of(reading), spb);
+            var alex = new User("Alexey", "Novopashin", "alexei.novopashin@gmail.com", "1234", LocalDate.now(), Gender.MALE, List.of(reading), spb);
             var john = new User("John", "Smith", "john.smith@gmail.com", "5678", LocalDate.now(), Gender.MALE, List.of(photography, woodworking), ykb);
             userRepository.create(alex);
             userRepository.create(john);
