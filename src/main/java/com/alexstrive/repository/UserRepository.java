@@ -137,8 +137,6 @@ public class UserRepository extends AbstractRepository<User> {
         try (var conn = getConnection(); var stmt = conn.prepareStatement(sql)) {
             var hashedPassword = passwordValidator.hashPassword(password);
 
-            System.out.println(new String(hashedPassword));
-
             stmt.setString(1, username);
             stmt.setString(2, new String(hashedPassword));
 
