@@ -1,18 +1,16 @@
 package com.alexstrive.repository;
 
 import com.alexstrive.PasswordValidator;
+import com.alexstrive.model.City;
+import com.alexstrive.model.Gender;
+import com.alexstrive.model.Interest;
 import com.alexstrive.model.User;
 import io.micronaut.context.annotation.Bean;
 
-import javax.crypto.SecretKeyFactory;
-import javax.crypto.spec.PBEKeySpec;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.security.NoSuchAlgorithmException;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.KeySpec;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -20,24 +18,40 @@ import java.util.Optional;
 @Bean
 public class UserRepository extends AbstractRepository<User> {
     private final PasswordValidator passwordValidator;
+    private final InterestRepository interestRepository;
+    private final CityRepository cityRepository;
 
-    public UserRepository(PasswordValidator passwordValidator) {
+    public UserRepository(PasswordValidator passwordValidator, InterestRepository interestRepository, CityRepository cityRepository) {
         this.passwordValidator = passwordValidator;
+        this.interestRepository = interestRepository;
+        this.cityRepository = cityRepository;
     }
 
     @Override
     public List<User> getAll() {
-        var sql = "SELECT * FROM public.user";
+        var sql = "SELECT id, first_name, last_name, email, password, birthday, gender, city_id FROM public.user";
         var users = new ArrayList<User>();
 
         try (var conn = getConnection(); var stmt = conn.createStatement(); var rs = stmt.executeQuery(sql)) {
             while (rs.next()) {
+                var city = cityRepository.getById(rs.getLong(8));
+
+                if (city.isEmpty()) {
+                    throw new IllegalArgumentException("City with id " + rs.getLong(8) + " not found");
+                }
+
+                var interests = interestRepository.getInterestsByUserId(rs.getLong(1));
+
                 var user = new User(
-                        rs.getInt(1),
+                        rs.getLong(1),
                         rs.getString(2),
                         rs.getString(3),
                         rs.getString(4),
-                        rs.getString(5)
+                        rs.getString(5),
+                        rs.getObject(6, LocalDate.class),
+                        Gender.valueOf(rs.getString(7)),
+                        interests,
+                        city.get()
                 );
 
                 users.add(user);
@@ -51,35 +65,46 @@ public class UserRepository extends AbstractRepository<User> {
 
     @Override
     public Optional<User> getById(Long id) {
-        var sql = "SELECT * FROM public.user WHERE id = ?";
-        User user;
+        var sql = "SELECT id, first_name, last_name, email, password, birthday, gender, city_id FROM public.user WHERE id = ?";
+        User user = null;
 
         try (var conn = getConnection(); var stmt = conn.prepareStatement(sql);) {
             stmt.setLong(1, id);
 
             try (var rs = stmt.executeQuery();) {
-                rs.next();
-                user = new User(
-                        rs.getInt(1),
-                        rs.getString(2),
-                        rs.getString(3),
-                        rs.getString(4),
-                        rs.getString(5)
-                );
-            }
+                if (rs.next()) {
+                    var city = cityRepository.getById(rs.getLong(8));
 
-            return Optional.of(user);
+                    if (city.isEmpty()) {
+                        throw new IllegalArgumentException("City with id " + rs.getLong(8) + " not found");
+                    }
+
+                    var interests = interestRepository.getInterestsByUserId(rs.getLong(1));
+
+                    user = new User(
+                            rs.getLong(1),
+                            rs.getString(2),
+                            rs.getString(3),
+                            rs.getString(4),
+                            rs.getString(5),
+                            rs.getObject(6, LocalDate.class),
+                            Gender.valueOf(rs.getString(7)),
+                            interests,
+                            city.get()
+                    );
+                }
+            }
         } catch (SQLException e) {
             e.printStackTrace();
         }
 
-        return Optional.empty();
+        return Optional.ofNullable(user);
     }
 
     @Override
     public Optional<User> create(User entity) {
-
-        var sql = "INSERT INTO public.user (firstname, lastname, email, password) VALUES (?, ?, ?, ?)";
+        var sql = "INSERT INTO public.user (first_name, last_name, email, password, gender, city_id) VALUES (?, ?, ?, ?, ?, ?)";
+        User user = null;
 
         try (var conn = getConnection(); var stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             var hashedPassword = passwordValidator.hashPassword(entity.password());
@@ -88,17 +113,21 @@ public class UserRepository extends AbstractRepository<User> {
             stmt.setString(2, entity.lastName());
             stmt.setString(3, entity.email());
             stmt.setString(4, new String(hashedPassword, StandardCharsets.UTF_8));
+            stmt.setString(5, String.valueOf(entity.gender()));
+            stmt.setInt(6, entity.city().id());
 
             stmt.executeUpdate();
             var genKeys = stmt.getGeneratedKeys();
             genKeys.next();
-            var id = genKeys.getInt(1);
-            return Optional.of(new User(id, entity.firstName(), entity.lastName(), entity.email(), ""));
+            var id = genKeys.getLong(1);
+            user = new User(id, entity);
+
+            interestRepository.assignInterestsToUserById(id, entity.interests().stream().map(Interest::id).toList());
         } catch (SQLException exception) {
             exception.printStackTrace();
         }
 
-        return Optional.empty();
+        return Optional.ofNullable(user);
     }
 
     public boolean login(String username, String password) {

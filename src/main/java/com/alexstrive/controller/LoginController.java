@@ -8,8 +8,6 @@ import io.micronaut.http.MediaType;
 import io.micronaut.http.annotation.*;
 import io.micronaut.session.Session;
 
-import java.util.Optional;
-
 @Controller("/login")
 public class LoginController {
     private final UserRepository userRepository;

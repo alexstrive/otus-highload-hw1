@@ -18,9 +18,7 @@ public class PasswordValidator {
     private String algo;
 
     public byte[] hashPassword(String password) {
-        System.out.println(salt);
         KeySpec spec = new PBEKeySpec(password.toCharArray(), salt.getBytes(), 65536, 128);
-
         try {
             SecretKeyFactory factory = SecretKeyFactory.getInstance(algo);
             return factory.generateSecret(spec).getEncoded();
