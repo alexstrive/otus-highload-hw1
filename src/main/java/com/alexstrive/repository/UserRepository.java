@@ -103,7 +103,7 @@ public class UserRepository extends AbstractRepository<User> {
 
     @Override
     public Optional<User> create(User entity) {
-        var sql = "INSERT INTO public.user (first_name, last_name, email, password, gender, city_id) VALUES (?, ?, ?, ?, ?, ?)";
+        var sql = "INSERT INTO public.user (first_name, last_name, email, password, birthday, gender, city_id) VALUES (?, ?, ?, ?, ?, ?, ?)";
         User user = null;
 
         try (var conn = getConnection(); var stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -113,8 +113,9 @@ public class UserRepository extends AbstractRepository<User> {
             stmt.setString(2, entity.lastName());
             stmt.setString(3, entity.email());
             stmt.setString(4, new String(hashedPassword, StandardCharsets.UTF_8));
-            stmt.setString(5, String.valueOf(entity.gender()));
-            stmt.setInt(6, entity.city().id());
+            stmt.setObject(5, entity.birthday());
+            stmt.setString(6, String.valueOf(entity.gender()));
+            stmt.setInt(7, entity.city().id());
 
             stmt.executeUpdate();
             var genKeys = stmt.getGeneratedKeys();
